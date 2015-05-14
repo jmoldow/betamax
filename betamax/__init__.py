@@ -10,6 +10,7 @@ See http://betamax.rtfd.org/ for documentation.
 """
 
 from .exceptions import BetamaxError
+# REVIEW: modules, containing only a single class, named differently than the class.
 from .recorder import Betamax
 from .matchers import BaseMatcher
 from .serializers import BaseSerializer

@@ -19,6 +19,25 @@ class Configuration(object):
 
     """
 
+    # REVIEW: This method makes it seem like configurations are being handled in
+    # some clean way. But with the exception of the define_cassette_placeholder()
+    # helper method, this is just directly modifying global variables:
+    # - Configuration.CASSETTE_LIBRARY_DIR
+    # - Cassette.default_cassette_options
+    # And the helper method is only a very light wrapper around one of those.
+    # Why bother with a class / context manager? Why not access the globals
+    # directly / move the helper method into a module-level function?
+    #
+    # Possible guesses:
+    # - Docstrings for properties.
+    # - Being able to override __setattr__ to use simple assignment to do more
+    #   complex operations.
+    # - It looks cool (context managers!).
+    # - Configuration / Cassette don't need to be exposed in __init__.py.
+    # - Can instantiate and put a copy on a Betamax instance.
+    #   - But then modifying the attributes of what appears to be an instance
+    #     variable, will actually change global settings.
+
     CASSETTE_LIBRARY_DIR = 'vcr/cassettes'
 
     def __enter__(self):
@@ -29,6 +48,7 @@ class Configuration(object):
 
     def __setattr__(self, prop, value):
         if prop == 'preserve_exact_body_bytes':
+            # REVIEW: Why does the value get ignored?
             self.default_cassette_options[prop] = True
         else:
             super(Configuration, self).__setattr__(prop, value)
@@ -38,10 +58,13 @@ class Configuration(object):
         """Retrieve and set the directory to store the cassettes in."""
         return Configuration.CASSETTE_LIBRARY_DIR
 
+    # REVIEW: Good use of @property.setter
     @cassette_library_dir.setter
     def cassette_library_dir(self, value):
         Configuration.CASSETTE_LIBRARY_DIR = value
 
+    # REVIEW: Why not make a copy of Cassette.default_cassette_options as an
+    # instance variable? Why modify it?
     @property
     def default_cassette_options(self):
         """Retrieve and set the default cassette options.

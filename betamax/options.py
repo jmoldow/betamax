@@ -16,6 +16,7 @@ def validate_serializer(serializer):
     return serializer in list(serializer_registry.keys())
 
 
+# REVIEW: Seems like placeholders should be a list of namedtuples or objects.
 def validate_placeholders(placeholders):
     keys = ['placeholder', 'replace']
     return all(
@@ -23,11 +24,18 @@ def validate_placeholders(placeholders):
     )
 
 
+# REVIEW: Use __builtins__.map (or itertools.imap in python2)
+# REVIEW: Why even do a translation? Why aren't the keys exactly the same?
 def translate_cassette_options():
     for (k, v) in Cassette.default_cassette_options.items():
         yield (k, v) if k != 'record_mode' else ('record', v)
 
 
+# REVIEW: This is a wrapper around a dict (why not a subclass?), with
+# validation and default behavior.  Could probably have found a 3rd party
+# library for a validatable object, but maybe no popular libraries do
+# fallback-to-defaults (most probably do exception on validation error). I
+# guess it's also easy enough to write this yourself.
 class Options(object):
     valid_options = {
         'match_requests_on': validate_matchers,
@@ -48,6 +56,8 @@ class Options(object):
         'preserve_exact_body_bytes': False,
         'placeholders': [],
     }
+
+    # REVIEW: There's a few hard-coded usages of Options here. Not super() friendly!
 
     def __init__(self, data=None):
         self.data = data or {}

@@ -45,6 +45,8 @@ class Betamax(object):
 
     """
 
+    # REVIEW: No __init__ docstring. Instead, class docstring shows usage of all args.
+    # REVIEW: Used mutable object as default parameter. Luckily/intentionally, it is never modified.
     def __init__(self, session, cassette_library_dir=None,
                  default_cassette_options={}):
         #: Store the requests.Session object being wrapped.
@@ -55,6 +57,10 @@ class Betamax(object):
         self.betamax_adapter = BetamaxAdapter(old_adapters=self.http_adapters)
         # We need a configuration instance to make life easier
         self.config = Configuration()
+
+        # REVIEW #1: Perhaps the rest of this logic belongs in Configuration.__init__ instead.
+        # REVIEW #2: This modifies global state, even though it doesn't look like it does!
+
         # Merge the new cassette options with the default ones
         self.config.default_cassette_options.update(
             default_cassette_options or {}
@@ -63,6 +69,8 @@ class Betamax(object):
         # If it was passed in, use that instead.
         if cassette_library_dir:
             self.config.cassette_library_dir = cassette_library_dir
+
+    # REVIEW: Context managers!
 
     def __enter__(self):
         self.start()
@@ -75,8 +83,13 @@ class Betamax(object):
         # try to raise the exception and not muffle anything.
         if any(ex_args):
             # If you return False, Python will re-raise the exception for you
+            # REVIEW: This is so Python can differentiate between re-raising an
+            # error, and an error occuring in the context manager itself
+            # (IIRC).
             return False
 
+    # REVIEW: Why is this necessary? What's wrong with ``with Configuration() as config``?
+    # Possible answer: This way, Configuration doesn't need to be exposed in __init__.py
     @staticmethod
     def configure():
         """Help to configure the library as a whole.
@@ -118,6 +131,7 @@ class Betamax(object):
         name = serializer_class.name
         serializers.serializer_registry[name] = serializer_class()
 
+    # REVIEW: Nice use of unicode in a source file.
     # ❙▸
     def start(self):
         """Start recording or replaying interactions."""
@@ -145,11 +159,23 @@ class Betamax(object):
         :param str serialize: DEPRECATED the format you want Betamax to
             serialize the request and response data to and from
         """
+        # REVIEW: By moving Options to its own module, we lose the
+        # documentation of all the keyword arguments.
         kwargs = Options(kwargs)
         serialize = kwargs['serialize'] or kwargs['serialize_with']
+        # REVIEW 1: Why are we overriding potential user input?
+        # REVIEW 2: cassette_library_dir isn't one of the validated options. So
+        # it's not expected to be passed in kwargs. But then why are we
+        # attaching it after validation? Why not just pass self.config, or pass
+        # it manually as a kwarg?
         kwargs['cassette_library_dir'] = self.config.cassette_library_dir
 
         can_load = Cassette.can_be_loaded(
+            # REVIEW: self.config is the same as Configuration(), and
+            # Configuration().cassette_library_dir is the same as
+            # Configuration.CASSETTE_LIBRARY_DIR. Why not put that global on
+            # Cassette, and then this function wouldn't need to pass this
+            # value?
             self.config.cassette_library_dir,
             cassette_name,
             serialize,
@@ -158,6 +184,7 @@ class Betamax(object):
 
         if can_load:
             self.betamax_adapter.load_cassette(cassette_name, serialize,
+                # REVIEW: If Options were a dict subclass, could do **kwargs.
                                                kwargs)
         else:
             # If we're not recording or replaying an existing cassette, we
