@@ -21,7 +21,7 @@ def _sanitize(name):
     return re.sub('[\s/]+', '-', name)
 
 
-def _casette_name(request, parametrized):
+def _cassette_name(request, parametrized):
     """Determine a cassette name from request.
 
     :param request:
@@ -56,18 +56,31 @@ def _casette_name(request, parametrized):
     return cassette_name
 
 
-def _betamax_recorder(request, parametrized=True):
-    cassette_name = _casette_name(request, parametrized=parametrized)
-    session = requests.Session()
+def _betamax_recorder(request, cassette_name, session, cassette_options):
     recorder = betamax.Betamax(session)
-    recorder.use_cassette(cassette_name)
+    recorder.use_cassette(cassette_name, **cassette_options)
     recorder.start()
     request.addfinalizer(recorder.stop)
     return recorder
 
 
 @pytest.fixture
-def betamax_recorder(request):
+def requests_session():
+    return requests.Session()
+
+
+@pytest.fixture
+def configure_betamax():
+    pass
+
+
+@pytest.fixture
+def betamax_cassette_options():
+    return {}
+
+
+@pytest.fixture
+def betamax_recorder(request, configure_betamax, requests_session, betamax_cassette_options):
     """Generate a recorder with a session that has Betamax already installed.
 
     This will create a new Betamax instance with a generated cassette name.
@@ -75,7 +88,7 @@ def betamax_recorder(request):
     the test is collected, then the class name (if it exists), and then the
     test function name. For example, if your test is in ``test_stuff.py`` and
     is the method ``TestStuffClass.test_stuff`` then your cassette name will be
-    ``test_stuff_TestStuffClass_test_stuff``. If the test is parametrized,
+    ``test_stuff.TestStuffClass.test_stuff``. If the test is parametrized,
     the parameters will not be included in the name. In case you need that,
     use betamax_parametrized_recorder instead. This will change in 1.0.0,
     where parameters will be included by default.
@@ -86,7 +99,11 @@ def betamax_recorder(request):
     :returns:
         An instantiated recorder.
     """
-    return _betamax_recorder(request, parametrized=False)
+    cassette_name = _cassette_name(request, parametrized=False)
+    return _betamax_recorder(
+        request, cassette_name=cassette_name, session=requests_session,
+        cassette_options=betamax_cassette_options,
+        )
 
 
 @pytest.fixture
@@ -105,7 +122,14 @@ def betamax_session(betamax_recorder):
 
 
 @pytest.fixture
-def betamax_parametrized_recorder(request):
+def betamax_cassette_name(request):
+    return _cassette_name(request, parametrized=True)
+
+
+@pytest.fixture
+def betamax_parametrized_recorder(request, betamax_cassette_name,
+                                  configure_betamax, requests_session,
+                                  betamax_cassette_options):
     """Generate a recorder with a session that has Betamax already installed.
 
     This will create a new Betamax instance with a generated cassette name.
@@ -115,7 +139,7 @@ def betamax_parametrized_recorder(request):
     For example, if your test is in ``test_stuff.py`` and
     the method is ``TestStuffClass.test_stuff`` with parameter ``True`` then
     your cassette name will be
-    ``test_stuff_TestStuffClass_test_stuff[True]``.
+    ``test_stuff.TestStuffClass.test_stuff[True]``.
 
     :param request:
         A request object from pytest giving us context information for the
@@ -128,7 +152,10 @@ def betamax_parametrized_recorder(request):
         "will be removed in betamax 1.0. Their behavior will be the "
         "default.",
         DeprecationWarning)
-    return _betamax_recorder(request, parametrized=True)
+    return _betamax_recorder(
+        request, cassette_name=betamax_cassette_name, session=requests_session,
+        cassette_options=betamax_cassette_options,
+        )
 
 
 @pytest.fixture
